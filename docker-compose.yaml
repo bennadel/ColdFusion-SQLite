@@ -1,0 +1,12 @@
+version: "2.4"
+
+services:
+  # Admin: http://localhost:8888/lucee/admin/server.cfm
+  cfml:
+    build: "."
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./app:/var/www
+      # Don't put the databases in a publicly accessible directory!
+      - ./databases:/var/www-databases

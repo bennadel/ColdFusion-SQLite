@@ -1,0 +1,42 @@
+
+html {
+	box-sizing: content-box ;
+}
+html *,
+html *:before,
+html *:after {
+	box-sizing: inherit ;
+}
+
+body {
+	font-family: monospace ;
+}
+
+a {
+	color: #e00000 ;
+}
+
+input,
+button {
+	color: inherit ;
+	font-family: inherit ;
+	font-size: inherit ;
+	padding: 3px 5px ;
+}
+
+.item {
+	align-items: center ;
+	border: 1px solid #cccccc ;
+	border-radius: 4px ;
+	display: flex ;
+	gap: 10px ;
+	margin: 7px 0px ;
+	padding: 8px 10px ;
+}
+.item .push-right {
+	margin-left: auto ;
+}
+.item [ data-completed = "Yes" ] {
+	color: #999999 ;
+	text-decoration: line-through ;
+}
