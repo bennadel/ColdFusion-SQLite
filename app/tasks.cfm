@@ -1,6 +1,6 @@
 <cfscript>
 
-	param name="url.userID" type="numeric" default="0";
+	param name="url.userID" type="numeric" default=0;
 	param name="form.action" type="string" default="";
 	param name="form.taskID" type="string" default=0;
 	param name="form.taskName" type="string" default="";
