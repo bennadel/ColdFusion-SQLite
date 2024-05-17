@@ -2,6 +2,7 @@ version: "2.4"
 
 services:
   # Admin: http://localhost:8888/lucee/admin/server.cfm
+  # Bash into container: docker compose exec cfml bash
   cfml:
     build: "."
     ports:
