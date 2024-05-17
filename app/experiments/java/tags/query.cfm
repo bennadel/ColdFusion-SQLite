@@ -3,12 +3,13 @@
 	if ( thistag.executionMode == "start" ) {
 
 		param name="attributes.name" type="string" default="";
-		param name="attributes.database" type="string" default=":memory:";
+		param name="attributes.database" type="string";
 		param name="attributes.returnType" type="string" default="query";
 
 		queryParams = [];
 
-		// Exit tag and allow the body of the tag to execute.
+		// Exit tag and allow the body of the tag to execute (and the queryParam child
+		// tags to accumulate).
 		exit
 			method = "exitTemplate"
 		;
@@ -27,21 +28,66 @@
 	// ------------------------------------------------------------------------------- //
 	// ------------------------------------------------------------------------------- //
 
-	// https://mccue.dev/pages/1-17-24-java-sql
-
 	sqlTypes = createObject( "java", "java.sql.Types" );
 
 	datasource = createObject( "java", "org.sqlite.SQLiteDataSource" ).init();
 	datasource.setUrl( "jdbc:sqlite:#attributes.database#" );
 
 	try {
-		
+
+		// EXPERIMENTAL CONTEXT: In this version, we're creating a NEW CONNECTION to the
+		// database every time the query is executed. This is sub-optimal. In a production
+		// scenario, we'd want to create a CONNECTION POOL. But, that's more advanced than
+		// I can do at this time.
 		connection = datasource.getConnection();
+
+		// Prepare the SQL statement with positional parameters.
 		statement = connection.prepareStatement( sql );
+		applyQueryParams( statement, queryParams );
 
-		loop array="#queryParams#" index="i" value="queryParam" {
+		// Execute the SQL statement against the database.
+		// --
+		// NOTE: Not all SQL queries return a ResultSet. As such, we're using the
+		// .execute() method here followed by the .getResultSet() method below.
+		statement.execute();
 
-			// See: https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html
+		if ( attributes.name.len() ) {
+
+			results = ( attributes.returnType == "query" )
+				? convertResultSetToQuery( statement.getResultSet() )
+				: convertResultSetToArray( statement.getResultSet() )
+			;
+
+			setVariable( "caller.#attributes.name#", results );
+
+		}
+
+	} finally {
+
+		results?.close();
+		statement?.close();
+		connection?.close();
+
+	}
+
+	// ------------------------------------------------------------------------------- //
+	// ------------------------------------------------------------------------------- //
+
+	/**
+	* I apply the query params as positional parameters to the given statement.
+	*/
+	private void function applyQueryParams(
+		required any statement,
+		required array queryParams
+		) {
+
+		// I'm not exactly sure how every data-type maps to the proper method call. This
+		// is below the surface that I usually operate on. Chat GPT helped me figure some
+		// of this stuff out.
+		// --
+		// See: https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html
+		loop array="#queryParams#" index="local.i" value="local.queryParam" {
+
 			switch ( queryParam.type ) {
 				case "bit":
 				case "boolean":
@@ -99,40 +145,8 @@
 
 		}
 
-		statement.execute();
-
-		if ( attributes.name.len() ) {
-
-			results = statement.getResultSet();
-
-			if ( attributes.returnType == "query" ) {
-
-				setVariable(
-					"caller.#attributes.name#",
-					convertResultSetToQuery( results )
-				);
-
-			} else {
-
-				setVariable(
-					"caller.#attributes.name#",
-					convertResultSetToArray( results )
-				);
-
-			}
-
-		}
-
-	} finally {
-
-		results?.close();
-		statement?.close();
-		connection?.close();
-
 	}
 
-	// ------------------------------------------------------------------------------- //
-	// ------------------------------------------------------------------------------- //
 
 	/**
 	* I convert the given SQL ResultSet into a ColdFusion array (of structs).
