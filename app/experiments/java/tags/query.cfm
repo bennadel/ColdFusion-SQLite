@@ -30,7 +30,11 @@
 
 	sqlTypes = createObject( "java", "java.sql.Types" );
 
+	// Define a Java datasource that points to the given SQLite file.
 	datasource = createObject( "java", "org.sqlite.SQLiteDataSource" ).init();
+	// NOTE: In order to use the in-memory database (`:memory:`) or any variation therein,
+	// we'd have to create a connection pool that maintains a connection. Otherwise, the
+	// in-memory database is dropped after ever SQL connection is closed.
 	datasource.setUrl( "jdbc:sqlite:#attributes.database#" );
 
 	try {
@@ -41,16 +45,22 @@
 		// I can do at this time.
 		connection = datasource.getConnection();
 
-		// Prepare the SQL statement with positional parameters.
+		// Prepare the SQL statement with positional parameters. This allows us to use
+		// dynamic, user-provided values while still preventing SQL injection attacks.
 		statement = connection.prepareStatement( sql );
 		applyQueryParams( statement, queryParams );
 
 		// Execute the SQL statement against the database.
 		// --
-		// NOTE: Not all SQL queries return a ResultSet. As such, we're using the
-		// .execute() method here followed by the .getResultSet() method below.
+		// NOTE: Not all SQL queries return a ResultSet (ex. UPDATE and CREATE TABLE). As
+		// such, we're using the .execute() method here followed, conditionally, by the
+		// .getResultSet() method below.
 		statement.execute();
 
+		// If the NAME has been provided, we're going to assume the user knows what
+		// they're doing, and that a ResultSet is expected (this is a poor assumption, but
+		// is fine for the demo - the .getResultSet() can return NULL and we should check
+		// for that in a more robust scenario).
 		if ( attributes.name.len() ) {
 
 			results = ( attributes.returnType == "query" )
@@ -74,7 +84,7 @@
 	// ------------------------------------------------------------------------------- //
 
 	/**
-	* I apply the query params as positional parameters to the given statement.
+	* I apply the query params as positional parameters to the given prepared statement.
 	*/
 	private void function applyQueryParams(
 		required any statement,
@@ -82,7 +92,7 @@
 		) {
 
 		// I'm not exactly sure how every data-type maps to the proper method call. This
-		// is below the surface that I usually operate on. Chat GPT helped me figure some
+		// is below the surface that I usually operate on. ChatGPT helped me figure some
 		// of this stuff out.
 		// --
 		// See: https://docs.oracle.com/en/java/javase/11/docs/api/java.sql/java/sql/PreparedStatement.html
@@ -100,6 +110,7 @@
 					statement.setLong( i, javaCast( "long", queryParam.value ) );
 				break;
 				case "decimal":
+				case "numeric":
 					statement.setLong( i, javaCast( "bigdecimal", queryParam.value ) );
 				break;
 				case "double":
@@ -109,8 +120,6 @@
 				case "real":
 					statement.setFloat( i, javaCast( "float", queryParam.value ) );
 				break;
-				// case "numeric":
-				// break;
 				case "smallint":
 					statement.setShort( i, javaCast( "short", queryParam.value ) );
 				break;
@@ -165,7 +174,9 @@
 
 				// TODO: Is calling .getObject() sufficient for data-typing? When I dump-
 				// out the results, they look properly cast. But, I'm not sure if that's
-				// just something Lucee CFML is doing in the CFDump tag rendering.
+				// just something Lucee CFML is doing in the CFDump tag rendering. Also,
+				// SQLite will store any data in any column; so, I am not sure if it's
+				// even safe to assume that I can cast a column value consistently.
 				row[ metadata.getColumnName( i ) ] = resultSet.getObject( i );
 
 			}
